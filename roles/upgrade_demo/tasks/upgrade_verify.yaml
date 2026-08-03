@@ -1,0 +1,26 @@
+---
+- name: Check installed version (simulated)
+  ansible.builtin.debug:
+    msg: "[{{ inventory_hostname }}] version check passed: {{ target_version }}"
+
+- name: Read current protocol state (simulated)
+  ansible.builtin.set_fact:
+    protocol_current:
+      isis_adjacencies: 4
+      bgp_peers: 12
+
+# The baseline came from pre_maint - possibly a previous job, restored from
+# the checkpoint. Traffic is not restored unless protocols converged.
+- name: Gate - protocols must match the pre-maintenance baseline
+  ansible.builtin.assert:
+    that:
+      - protocol_current.isis_adjacencies == protocol_baseline.isis_adjacencies
+      - protocol_current.bgp_peers == protocol_baseline.bgp_peers
+    fail_msg: "Convergence gate FAILED — leaving device drained, do not restore traffic"
+    success_msg: "Convergence gate passed: protocol state matches baseline {{ protocol_baseline }}"
+  when: protocol_baseline | default({}) | length > 0
+
+- name: Simulated failure hook (demo only)
+  ansible.builtin.fail:
+    msg: "Simulated failure during upgrade_verify. Re-run the playbook to resume."
+  when: simulate_failure_at == 'upgrade_verify'

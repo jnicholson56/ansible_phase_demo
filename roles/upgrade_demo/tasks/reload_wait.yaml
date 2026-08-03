@@ -1,0 +1,20 @@
+---
+- name: Wait for the device to finish rebooting (simulated)
+  ansible.builtin.wait_for:
+    timeout: "{{ upgrade_demo_reboot_seconds }}"
+  delegate_to: localhost
+
+- name: Clear reboot marker (device is back online)
+  ansible.builtin.file:
+    path: "{{ checkpoint_dir }}/{{ inventory_hostname }}_{{ ticket }}.rebooting"
+    state: absent
+  delegate_to: localhost
+
+- name: Confirm device is reachable (simulated)
+  ansible.builtin.debug:
+    msg: "[{{ inventory_hostname }}] NETCONF reachable, now running {{ target_version }}"
+
+- name: Simulated failure hook (demo only)
+  ansible.builtin.fail:
+    msg: "Simulated failure during reload_wait. Re-run the playbook to resume."
+  when: simulate_failure_at == 'reload_wait'

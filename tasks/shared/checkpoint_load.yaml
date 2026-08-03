@@ -1,0 +1,93 @@
+---
+# Decide where this run starts.
+#
+#   start_from_phase = 'auto'   resume after the last completed phase
+#   start_from_phase = <name>   start exactly at that phase (operator override)
+#
+# Sets facts:
+#   current_phase        phase the run starts at
+#   current_phase_order  numeric order of current_phase
+#   checkpoint_loaded    true when auto-resume used a checkpoint
+#   protocol_baseline    restored from the checkpoint when present
+
+- name: Check for an existing checkpoint
+  ansible.builtin.stat:
+    path: "{{ checkpoint_file }}"
+  register: checkpoint_stat
+  delegate_to: localhost
+
+- name: Read checkpoint file
+  ansible.builtin.set_fact:
+    checkpoint: "{{ lookup('file', checkpoint_file) | from_yaml }}"
+  when: checkpoint_stat.stat.exists
+
+- name: Auto-resume from checkpoint
+  when:
+    - start_from_phase == 'auto'
+    - checkpoint_stat.stat.exists
+  block:
+    - name: Refuse a checkpoint from a different ticket
+      ansible.builtin.assert:
+        that:
+          - checkpoint.ticket == ticket
+        fail_msg: >-
+          Checkpoint at {{ checkpoint_file }} belongs to ticket
+          {{ checkpoint.ticket }}, not {{ ticket }}.
+          Remove the file to start fresh.
+
+    # The checkpoint records what finished successfully. When a sub-phase is
+    # recorded it is more precise than the major phase, so it wins.
+    - name: Resolve the completed phase
+      ansible.builtin.set_fact:
+        completed_phase: >-
+          {{ checkpoint.sub_phase
+             if checkpoint.sub_phase | default('') | length > 0
+             else checkpoint.phase }}
+
+    - name: Refuse a checkpoint from a completed run
+      ansible.builtin.assert:
+        that:
+          - phase_order[completed_phase] | int < phase_order['cleanup'] | int
+        fail_msg: >-
+          Checkpoint shows a completed run (phase: {{ completed_phase }}).
+          There is nothing to resume; remove {{ checkpoint_file }} to start fresh.
+
+    # Resume at the NEXT phase - the completed phase is never re-run on auto.
+    - name: Resume at the phase after the completed one
+      ansible.builtin.set_fact:
+        current_phase: >-
+          {{ (phase_order | dict2items | sort(attribute='value')
+              | selectattr('value', 'gt', phase_order[completed_phase] | int)
+              | first).key }}
+        checkpoint_loaded: true
+
+- name: Start fresh (no checkpoint found)
+  ansible.builtin.set_fact:
+    current_phase: validation
+    checkpoint_loaded: false
+  when:
+    - start_from_phase == 'auto'
+    - not checkpoint_stat.stat.exists
+
+- name: Start at the operator-selected phase (manual override)
+  ansible.builtin.set_fact:
+    current_phase: "{{ start_from_phase }}"
+    checkpoint_loaded: false
+  when: start_from_phase != 'auto'
+
+# Facts that later phases depend on must survive a restart. They are restored
+# from the checkpoint in every mode, including manual override.
+- name: Restore saved facts from checkpoint
+  ansible.builtin.set_fact:
+    protocol_baseline: "{{ checkpoint.protocol_baseline | default({}) }}"
+  when: checkpoint_stat.stat.exists
+
+- name: Set numeric phase order
+  ansible.builtin.set_fact:
+    current_phase_order: "{{ phase_order[current_phase] }}"
+
+- name: Show starting point
+  ansible.builtin.debug:
+    msg: >-
+      Starting at phase '{{ current_phase }}' (order {{ current_phase_order }})
+      — {{ 'resumed from checkpoint' if checkpoint_loaded else 'no checkpoint used' }}

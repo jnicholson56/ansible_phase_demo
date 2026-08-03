@@ -1,0 +1,34 @@
+---
+# Traffic removal runs as checkpointed sub-phases: a failure in one step
+# never repeats the steps before it.
+
+- name: Drain traffic (simulated)
+  ansible.builtin.debug:
+    msg: "[{{ inventory_hostname }}] IGP overload set, eBGP peers shut, MPLS LSPs drained"
+  when: current_phase_order | int <= phase_order['traffic_remove_drain'] | int
+
+- name: Simulated failure hook (demo only)
+  ansible.builtin.fail:
+    msg: "Simulated failure during traffic_remove_drain. Re-run the playbook to resume."
+  when:
+    - simulate_failure_at == 'traffic_remove_drain'
+    - current_phase_order | int <= phase_order['traffic_remove_drain'] | int
+
+- name: Save checkpoint - traffic_remove_drain complete
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/../tasks/shared/checkpoint_save.yaml"
+  vars:
+    checkpoint_phase: traffic_remove
+    checkpoint_sub_phase: traffic_remove_drain
+  when: current_phase_order | int <= phase_order['traffic_remove_drain'] | int
+
+- name: Verify traffic is fully drained (simulated)
+  ansible.builtin.debug:
+    msg: "[{{ inventory_hostname }}] 0 active LSPs, all eBGP sessions down — safe to proceed"
+  when: current_phase_order | int <= phase_order['traffic_remove_verify'] | int
+
+- name: Save checkpoint - traffic_remove_verify complete
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/../tasks/shared/checkpoint_save.yaml"
+  vars:
+    checkpoint_phase: traffic_remove
+    checkpoint_sub_phase: traffic_remove_verify
+  when: current_phase_order | int <= phase_order['traffic_remove_verify'] | int

@@ -1,0 +1,44 @@
+---
+# Record a completed phase.
+#
+# Required vars:
+#   checkpoint_phase      the phase that just finished
+# Optional vars:
+#   checkpoint_sub_phase  sub-phase within checkpoint_phase
+#
+# Checkpoints are written only AFTER a phase succeeds. A phase that fails
+# midway leaves the previous checkpoint in place, so auto-resume re-runs the
+# failed phase from its beginning.
+
+- name: Build checkpoint data
+  ansible.builtin.set_fact:
+    checkpoint_data:
+      phase: "{{ checkpoint_phase }}"
+      sub_phase: "{{ checkpoint_sub_phase | default('') }}"
+      ticket: "{{ ticket }}"
+      inventory_hostname: "{{ inventory_hostname }}"
+      target_version: "{{ target_version }}"
+      protocol_baseline: "{{ protocol_baseline | default({}) }}"
+      timestamp: "{{ now(fmt='%Y-%m-%d %H:%M:%S') }}"
+
+- name: Ensure checkpoint directory exists
+  ansible.builtin.file:
+    path: "{{ checkpoint_dir }}"
+    state: directory
+    mode: "0755"
+  delegate_to: localhost
+
+- name: Write checkpoint file
+  ansible.builtin.copy:
+    content: "{{ checkpoint_data | to_nice_yaml }}"
+    dest: "{{ checkpoint_file }}"
+    mode: "0644"
+  delegate_to: localhost
+
+- name: Confirm checkpoint
+  ansible.builtin.debug:
+    msg: >-
+      CHECKPOINT SAVED: {{ checkpoint_sub_phase | default(checkpoint_phase) }}
+      (order {{ phase_order[checkpoint_sub_phase | default(checkpoint_phase)] }}).
+      Auto resume will continue after this phase.
+      To rerun it deliberately: -e start_from_phase={{ checkpoint_sub_phase | default(checkpoint_phase) }}

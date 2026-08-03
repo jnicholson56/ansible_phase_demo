@@ -1,0 +1,17 @@
+---
+- name: Collect device health snapshot (simulated)
+  ansible.builtin.debug:
+    msg: "[{{ inventory_hostname }}] alarms clear, hardware healthy, disk space OK"
+
+# The baseline is persisted in the checkpoint so a resumed run can still
+# compare post-upgrade protocol state against pre-maintenance state.
+- name: Capture protocol baseline (simulated)
+  ansible.builtin.set_fact:
+    protocol_baseline:
+      isis_adjacencies: 4
+      bgp_peers: 12
+
+- name: Simulated failure hook (demo only)
+  ansible.builtin.fail:
+    msg: "Simulated failure during pre_maint. Re-run the playbook to resume."
+  when: simulate_failure_at == 'pre_maint'

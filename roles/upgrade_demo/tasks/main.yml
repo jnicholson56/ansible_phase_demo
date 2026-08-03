@@ -1,0 +1,107 @@
+---
+# The upgrade phase sequence. Every phase follows the same pattern:
+#
+#   banner  ->  phase tasks  ->  checkpoint save
+#
+# all gated on the same conditional, so a resumed run skips completed phases.
+
+- name: "=== PHASE: pre_maint (20) ==="
+  ansible.builtin.debug:
+    msg: "Pre-maintenance snapshots and baselines"
+  when: current_phase_order | int <= phase_order['pre_maint'] | int
+
+- name: Phase tasks - pre_maint
+  ansible.builtin.include_tasks: pre_maint.yaml
+  when: current_phase_order | int <= phase_order['pre_maint'] | int
+
+- name: Save checkpoint - pre_maint complete
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/../tasks/shared/checkpoint_save.yaml"
+  vars:
+    checkpoint_phase: pre_maint
+  when: current_phase_order | int <= phase_order['pre_maint'] | int
+
+# traffic_remove checkpoints its own sub-phases, so it is gated on the LAST
+# sub-phase - a resume into the middle of the drain still enters the file.
+- name: "=== PHASE: traffic_remove (30) ==="
+  ansible.builtin.debug:
+    msg: "Removing live traffic from the device"
+  when: current_phase_order | int <= phase_order['traffic_remove_verify'] | int
+
+- name: Phase tasks - traffic_remove
+  ansible.builtin.include_tasks: traffic_remove.yaml
+  when: current_phase_order | int <= phase_order['traffic_remove_verify'] | int
+
+- name: "=== PHASE: upgrade_install (40) ==="
+  ansible.builtin.debug:
+    msg: "Installing target software"
+  when: current_phase_order | int <= phase_order['upgrade_install'] | int
+
+- name: Phase tasks - upgrade_install
+  ansible.builtin.include_tasks: upgrade_install.yaml
+  when: current_phase_order | int <= phase_order['upgrade_install'] | int
+
+- name: Save checkpoint - upgrade_install complete
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/../tasks/shared/checkpoint_save.yaml"
+  vars:
+    checkpoint_phase: upgrade_install
+  when: current_phase_order | int <= phase_order['upgrade_install'] | int
+
+- name: "=== PHASE: reload_wait (50) ==="
+  ansible.builtin.debug:
+    msg: "Waiting for the device to reboot"
+  when: current_phase_order | int <= phase_order['reload_wait'] | int
+
+- name: Phase tasks - reload_wait
+  ansible.builtin.include_tasks: reload_wait.yaml
+  when: current_phase_order | int <= phase_order['reload_wait'] | int
+
+- name: Save checkpoint - reload_wait complete
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/../tasks/shared/checkpoint_save.yaml"
+  vars:
+    checkpoint_phase: reload_wait
+  when: current_phase_order | int <= phase_order['reload_wait'] | int
+
+- name: "=== PHASE: upgrade_verify (60) ==="
+  ansible.builtin.debug:
+    msg: "Verifying version and protocol convergence"
+  when: current_phase_order | int <= phase_order['upgrade_verify'] | int
+
+- name: Phase tasks - upgrade_verify
+  ansible.builtin.include_tasks: upgrade_verify.yaml
+  when: current_phase_order | int <= phase_order['upgrade_verify'] | int
+
+- name: Save checkpoint - upgrade_verify complete
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/../tasks/shared/checkpoint_save.yaml"
+  vars:
+    checkpoint_phase: upgrade_verify
+  when: current_phase_order | int <= phase_order['upgrade_verify'] | int
+
+- name: "=== PHASE: traffic_restore (70) ==="
+  ansible.builtin.debug:
+    msg: "Restoring live traffic to the device"
+  when: current_phase_order | int <= phase_order['traffic_restore'] | int
+
+- name: Phase tasks - traffic_restore
+  ansible.builtin.include_tasks: traffic_restore.yaml
+  when: current_phase_order | int <= phase_order['traffic_restore'] | int
+
+- name: Save checkpoint - traffic_restore complete
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/../tasks/shared/checkpoint_save.yaml"
+  vars:
+    checkpoint_phase: traffic_restore
+  when: current_phase_order | int <= phase_order['traffic_restore'] | int
+
+- name: "=== PHASE: post_maint (80) ==="
+  ansible.builtin.debug:
+    msg: "Post-maintenance snapshots and comparison"
+  when: current_phase_order | int <= phase_order['post_maint'] | int
+
+- name: Phase tasks - post_maint
+  ansible.builtin.include_tasks: post_maint.yaml
+  when: current_phase_order | int <= phase_order['post_maint'] | int
+
+- name: Save checkpoint - post_maint complete
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/../tasks/shared/checkpoint_save.yaml"
+  vars:
+    checkpoint_phase: post_maint
+  when: current_phase_order | int <= phase_order['post_maint'] | int

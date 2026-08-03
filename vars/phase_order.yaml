@@ -1,0 +1,21 @@
+---
+# Single source of truth for phase ordering.
+#
+# Higher numbers run later. Every task in the workflow is gated on:
+#   when: current_phase_order | int <= phase_order['<phase>'] | int
+# so once current_phase_order is set past a phase, that phase is skipped.
+#
+# Gaps between numbers leave room to insert phases without renumbering.
+
+phase_order:
+  validation: 10
+  pre_maint: 20
+  traffic_remove: 30
+  traffic_remove_drain: 31
+  traffic_remove_verify: 32
+  upgrade_install: 40
+  reload_wait: 50
+  upgrade_verify: 60
+  traffic_restore: 70
+  post_maint: 80
+  cleanup: 90

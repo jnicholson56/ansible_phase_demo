@@ -1,0 +1,13 @@
+---
+# All tasks run on the local machine; no devices are contacted.
+ansible_connection: local
+
+# These map to AWX survey variables in production. Override with -e.
+ticket: DEMO-0001
+start_from_phase: auto
+simulate_failure_at: ""
+target_version: 24.3-DEMO
+
+# Checkpoints are scoped per device + ticket.
+checkpoint_dir: "{{ playbook_dir }}/../.checkpoints"
+checkpoint_file: "{{ checkpoint_dir }}/{{ inventory_hostname }}_{{ ticket }}.yaml"

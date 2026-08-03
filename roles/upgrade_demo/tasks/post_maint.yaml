@@ -1,0 +1,9 @@
+---
+- name: Collect post-maintenance snapshot (simulated)
+  ansible.builtin.debug:
+    msg: "[{{ inventory_hostname }}] post-maintenance snapshot captured, no diff against pre-maintenance"
+
+- name: Simulated failure hook (demo only)
+  ansible.builtin.fail:
+    msg: "Simulated failure during post_maint. Re-run the playbook to resume."
+  when: simulate_failure_at == 'post_maint'

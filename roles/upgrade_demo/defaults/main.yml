@@ -1,0 +1,3 @@
+---
+# Seconds to simulate the post-install reboot.
+upgrade_demo_reboot_seconds: 5

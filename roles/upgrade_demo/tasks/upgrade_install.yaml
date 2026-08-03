@@ -1,0 +1,40 @@
+---
+# The install is NOT idempotent - it must never be issued twice. Before
+# issuing it, check whether an earlier run already started the install and
+# reboot. The marker file stands in for a real NETCONF reachability probe.
+
+- name: Pre-flight - check for a reboot already in progress
+  ansible.builtin.stat:
+    path: "{{ checkpoint_dir }}/{{ inventory_hostname }}_{{ ticket }}.rebooting"
+  register: reboot_marker
+  delegate_to: localhost
+
+- name: Pre-flight - device already rebooting, skip install and jump to reload_wait
+  ansible.builtin.set_fact:
+    current_phase_order: "{{ phase_order['reload_wait'] }}"
+  when: reboot_marker.stat.exists
+
+- name: Install target software and reboot (simulated)
+  ansible.builtin.debug:
+    msg: "[{{ inventory_hostname }}] request system software add {{ target_version }} reboot"
+  when: not reboot_marker.stat.exists
+
+- name: Mark device as rebooting (simulates the device going offline)
+  ansible.builtin.file:
+    path: "{{ checkpoint_dir }}/{{ inventory_hostname }}_{{ ticket }}.rebooting"
+    state: touch
+    mode: "0644"
+  delegate_to: localhost
+  when: not reboot_marker.stat.exists
+
+# Fails AFTER the install was issued: the re-run demonstrates that the
+# pre-flight check prevents a second install.
+- name: Simulated failure hook (demo only)
+  ansible.builtin.fail:
+    msg: >-
+      Simulated failure during upgrade_install, after the install was issued.
+      Re-run the playbook: pre-flight will detect the reboot in progress and
+      will NOT issue a second install.
+  when:
+    - simulate_failure_at == 'upgrade_install'
+    - not reboot_marker.stat.exists

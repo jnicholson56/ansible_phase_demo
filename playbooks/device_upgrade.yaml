@@ -1,0 +1,66 @@
+---
+# Resumable device upgrade - demonstration playbook.
+#
+# All device work is simulated with messages printed to the terminal; the
+# phase gating and checkpoint logic is fully functional.
+#
+#   Fresh run:        ansible-playbook playbooks/device_upgrade.yaml
+#   Inject a failure: ansible-playbook playbooks/device_upgrade.yaml -e simulate_failure_at=upgrade_install
+#   Resume:           ansible-playbook playbooks/device_upgrade.yaml
+#   Manual override:  ansible-playbook playbooks/device_upgrade.yaml -e start_from_phase=traffic_restore
+
+- name: Resumable device upgrade (demo)
+  hosts: routers
+  gather_facts: false
+  vars_files:
+    - ../vars/phase_order.yaml
+
+  tasks:
+    - name: Validate required variables
+      ansible.builtin.assert:
+        that:
+          - ticket is defined
+          - ticket | length > 0
+        fail_msg: "Provide a change ticket, e.g. -e ticket=DEMO-0001"
+
+    - name: Load checkpoint and determine starting phase
+      ansible.builtin.include_tasks: ../tasks/shared/checkpoint_load.yaml
+
+    - name: "=== PHASE: validation (10) ==="
+      ansible.builtin.debug:
+        msg: "Validating device and ticket"
+      when: current_phase_order | int <= phase_order['validation'] | int
+
+    - name: Confirm target version is not already installed (simulated)
+      ansible.builtin.debug:
+        msg: "[{{ inventory_hostname }}] running 23.4-DEMO, target {{ target_version }} — upgrade required"
+      when: current_phase_order | int <= phase_order['validation'] | int
+
+    - name: Save checkpoint - validation complete
+      ansible.builtin.include_tasks: ../tasks/shared/checkpoint_save.yaml
+      vars:
+        checkpoint_phase: validation
+      when: current_phase_order | int <= phase_order['validation'] | int
+
+    - name: Run the upgrade workflow
+      ansible.builtin.include_role:
+        name: upgrade_demo
+      when: current_phase_order | int <= phase_order['post_maint'] | int
+
+    - name: "=== PHASE: cleanup (90) ==="
+      ansible.builtin.debug:
+        msg: "Uploading logs and closing out the change (simulated)"
+      when: current_phase_order | int <= phase_order['cleanup'] | int
+
+    - name: Save checkpoint - run complete
+      ansible.builtin.include_tasks: ../tasks/shared/checkpoint_save.yaml
+      vars:
+        checkpoint_phase: cleanup
+      when: current_phase_order | int <= phase_order['cleanup'] | int
+
+    - name: Upgrade complete
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }} upgraded to {{ target_version }}.
+          The checkpoint remains at {{ checkpoint_file }} as an audit artifact;
+          remove the .checkpoints folder to run the demo again.

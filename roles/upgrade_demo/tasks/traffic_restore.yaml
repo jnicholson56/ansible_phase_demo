@@ -1,0 +1,13 @@
+---
+- name: Restore traffic (simulated)
+  ansible.builtin.debug:
+    msg: "[{{ inventory_hostname }}] IGP overload cleared, eBGP peers re-enabled"
+
+- name: Verify traffic has returned (simulated)
+  ansible.builtin.debug:
+    msg: "[{{ inventory_hostname }}] LSPs re-signalled, eBGP sessions established"
+
+- name: Simulated failure hook (demo only)
+  ansible.builtin.fail:
+    msg: "Simulated failure during traffic_restore. Re-run the playbook to resume."
+  when: simulate_failure_at == 'traffic_restore'
