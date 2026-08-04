@@ -1,4 +1,4 @@
-# Resumable Upgrade Demo[text](https://github.com/jnicholson56/ansible_phase_demo)
+# Resumable Upgrade Demo
 
 A minimal, runnable demonstration of the **phase-aware checkpoint system** used to
 make long network device upgrades resumable after a failure.
