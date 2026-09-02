@@ -44,9 +44,19 @@ example/
 
 - `ansible-core` 2.14 or later. Nothing else — only `ansible.builtin` modules are used.
 
+**Option A: venv + pip**
+
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
+```
+
+**Option B: uv** (manages the Python version and venv for you)
+
+```bash
+uv venv
+source .venv/bin/activate
+uv pip install -r requirements.txt
 ```
 
 ## Demo Script
