@@ -2,4 +2,4 @@
 # Usage:
 #   python -m venv .venv && source .venv/bin/activate
 #   pip install -r requirements.txt
-ansible-core>=2.14
+ansible-core

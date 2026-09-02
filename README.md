@@ -54,7 +54,7 @@ pip install -r requirements.txt
 **Option B: uv** (manages the Python version and venv for you)
 
 ```bash
-uv venv
+uv venv -p 3.14
 source .venv/bin/activate
 uv pip install -r requirements.txt
 ```
